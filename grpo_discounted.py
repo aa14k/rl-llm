@@ -168,16 +168,17 @@ def training_reward_adjustment(
 # --- Model and Training Configuration ---
 
 #model_name = "meta-llama/Llama-3.2-1B-Instruct"
-model_name = "Qwen/Qwen2.5-7B-Instruct"
+model_name = "Qwen/Qwen2.5-1.5B-Instruct"
 seed = 42
-GAMMA = 1-1e-7
-machine_name = 'capacityblock0'
+GAMMA = 1-1e-8
+BETA = 0.4
+machine_name = '-155'
 
 if "Llama" in model_name:
     output_dir = "outputs/Llama-1B-GRPO-gsm8k-discount1e-7-5gen-10epoch"
     run_name = "Llama-1B-GRPO-gsm8k-discount5e-8-5gen-5epoch"
 else:
-    run_name=model_name + '-gsm8k-discount' + str(GAMMA) + '-seed' + str(seed) + machine_name
+    run_name=model_name + '-gsm8k-discount' + str(GAMMA) + '-beta-'+ str(BETA) + '-seed' + str(seed) + machine_name
     output_dir="outputs/"+run_name
 
 
@@ -186,11 +187,11 @@ training_args = GRPOConfig(
     output_dir=output_dir,
     run_name=run_name,
     learning_rate=5e-6,
-    beta=0.4,
+    beta=BETA,
     adam_beta1 = 0.9,
     adam_beta2 = 0.99,
     weight_decay = 0.1,
-    warmup_ratio = 0.3,
+    warmup_ratio = 0.1,
     lr_scheduler_type='cosine',
     logging_steps=1,
     seed = seed,
@@ -200,7 +201,7 @@ training_args = GRPOConfig(
     num_generations=4,
     max_prompt_length=256,
     max_completion_length=786,
-    num_train_epochs=3,
+    num_train_epochs=2,
     save_steps=400,
     max_grad_norm=0.1,
     report_to="wandb",
@@ -208,7 +209,7 @@ training_args = GRPOConfig(
     overwrite_output_dir=True,
     disable_dropout=True,  # Important for consistent generation
     sync_ref_model=True,
-    ref_model_sync_steps=8,
+    ref_model_sync_steps=16,
     temperature=1.0,
     #use_liger_loss=True
     #loss_type='dr_grpo',
