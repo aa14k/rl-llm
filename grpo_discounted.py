@@ -173,6 +173,10 @@ seed = 42
 GAMMA = 1-1e-8
 BETA = 0.4
 machine_name = '-155'
+model_name = "Qwen/Qwen2.5-7B-Instruct"
+seed = 43
+GAMMA = 1.0 - 1e-7
+machine_name = 'constlr-capacityblock1'
 
 if "Llama" in model_name:
     output_dir = "outputs/Llama-1B-GRPO-gsm8k-discount1e-7-5gen-10epoch"
@@ -193,6 +197,8 @@ training_args = GRPOConfig(
     weight_decay = 0.1,
     warmup_ratio = 0.1,
     lr_scheduler_type='cosine',
+    warmup_ratio = 0.3,
+    lr_scheduler_type='constant_with_warmup',
     logging_steps=1,
     seed = seed,
     bf16=True,
