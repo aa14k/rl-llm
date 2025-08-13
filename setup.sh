@@ -45,3 +45,7 @@ python -c "import flash_attn; print('Flash Attention imported successfully')"
 uv pip uninstall vllm
 
 uv pip install vllm --no-build-isolation
+
+uv pip uninstall transformers
+
+uv pip install "transformers==4.55.0"
