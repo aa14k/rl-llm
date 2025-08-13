@@ -31,6 +31,8 @@ outputs_s3/
 eval_results/
 logs/
 
+Miniconda3-latest-Linux-x86_64.sh
+
 # development
 .idea/
 .vscode/
