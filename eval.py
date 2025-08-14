@@ -8,6 +8,7 @@ from math_verify import parse, verify
 
 
 
+
 # ----------------------------------------------------------------------------
 # Argument Parser
 # ----------------------------------------------------------------------------
@@ -123,8 +124,6 @@ for run in tqdm(range(runs)):
         generated_text = output.outputs[0].text
         answer = parse(extract_xml_answer(generated_text))
         gold = parse(eval_data[i]["other_answer"])
-        #print(ground_truth, predicted_answer)
-        #if int(predicted_answer) == int(ground_truth):
         if verify(gold,answer) == True:
             correct += 1
     #print(correct / (i+1))
