@@ -4,6 +4,7 @@ from datasets import load_dataset
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
 from tqdm import tqdm
+from math_verify import parse, verify
 
 
 
@@ -48,7 +49,7 @@ def extract_xml_answer(text: str) -> str:
     answer = text.split("<answer>")[-1]
     answer = answer.split("</answer>")[0]
     #print(answer)
-    return answer.strip()
+    return answer
 
 def extract_hash_answer(text: str) -> str | None:
     if "####" not in text:
@@ -120,11 +121,11 @@ for run in tqdm(range(runs)):
     correct = 0
     for i, output in enumerate(outputs):
         generated_text = output.outputs[0].text
-        predicted_answer = extract_xml_answer(generated_text)
-        ground_truth = eval_data[i]["other_answer"]
+        answer = parse(extract_xml_answer(generated_text))
+        gold = parse(eval_data[i]["other_answer"])
         #print(ground_truth, predicted_answer)
         #if int(predicted_answer) == int(ground_truth):
-        if predicted_answer == ground_truth:
+        if verify(gold,answer) == True:
             correct += 1
     #print(correct / (i+1))
     mean_correct += correct / (i+1)
