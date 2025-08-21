@@ -14,6 +14,8 @@ CUDA_VISIBLE_DEVICES=0 trl vllm-serve --model Qwen/Qwen2.5-7B-Instruct --tensor-
 
 then you can run the script by running
 
-CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 --config_file configs/ddp.yaml accelerate launch train_gsm8k.py
+CUDA_VISIBLE_DEVICES=1 python train_gsm8k.py
+
+Note that if you have more than 2 gpus, you can use accelerate to distribute training. Check out the docs for accelerate on huggingface or message Alex for more details. 
 
 
