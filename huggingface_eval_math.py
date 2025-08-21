@@ -19,11 +19,11 @@ def get_args():
     # Model and Tokenizer
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen2.5-7B-Instruct", help="The name of the model to evaluate.")
     parser.add_argument("--runs", type=int, default=30, help="Number of runs to average the results over.")
-    parser.add_argument("--max_model_len", type=int, default=1024, help="Maximum model length.")
+    parser.add_argument("--max_model_len", type=int, default=3072, help="Maximum model length.")
     parser.add_argument("--temperature", type=float, default=0.6, help="Sampling temperature for generation.")
     parser.add_argument("--top_p", type=float, default=1.0, help="Top-p sampling parameter.")
     parser.add_argument("--top_k", default=-1, help="Top-k sampling parameter.")
-    parser.add_argument("--max_tokens", type=int, default=786, help="Maximum number of tokens to generate in each response.")
+    parser.add_argument("--max_tokens", type=int, default=2048, help="Maximum number of tokens to generate in each response.")
     parser.add_argument("--seed", type=int, default=42, help="The seed used during vllm's inference")
 
 
@@ -41,17 +41,11 @@ Respond in the following format:
 </answer>
 """
 
-def extract_inter_answer(text: str) -> int:
-    numbers = re.findall(r'\d+', text)
-    if numbers:
-        return int(numbers[0])
-    return 0
+
 
 def extract_xml_answer(text: str) -> str:
-    answer = text.split("<answer>")[-1]
-    answer = answer.split("</answer>")[0]
-    #print(answer)
-    return answer.strip()
+    m = re.search(r"<answer>(.*?)</answer>", text, flags=re.DOTALL)
+    return m.group(1).strip() if m else ""
 
 def extract_hash_answer(text: str) -> str | None:
     if "####" not in text:
@@ -80,14 +74,14 @@ llm = LLM(
     enforce_eager=False,  # Use Flash Attention 2
 )
 
-data = load_dataset("openai/gsm8k", "main")["test"]
+data = load_dataset("nlile/hendrycks-MATH-benchmark")['test']
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 eval_data = []
 for i, item in enumerate(data):
     # Create the chat structure, same as in training
     chat = [
         {'role': 'system', 'content': SYSTEM_PROMPT},
-        {'role': 'user', 'content': item["question"]},
+        {'role': 'user', 'content': item["problem"]},
     ]
     
     # Apply the template to get the correctly formatted prompt string
@@ -98,11 +92,11 @@ for i, item in enumerate(data):
     )
     
     proccessed = {
-        "question": item["question"],
+        "question": item["problem"],
         "prompt": formatted_prompt, # Use the correctly formatted prompt
         "answer": item["answer"],
-        "numerical_answer": extract_numerical_answer(item["answer"]),
-        "other_answer": extract_hash_answer(item["answer"]),
+        "numerical_answer": item["answer"],
+        "other_answer": item["answer"],
     }
     eval_data.append(proccessed)
 
@@ -123,9 +117,9 @@ for run in tqdm(range(runs)):
     correct = 0
     for i, output in enumerate(outputs):
         generated_text = output.outputs[0].text
-        answer = extract_xml_answer(generated_text)
-        gold = eval_data[i]["other_answer"]
-        if answer == gold:
+        answer = parse(extract_xml_answer(generated_text))
+        gold = parse(eval_data[i]["other_answer"])
+        if verify(gold,answer):
             correct += 1
     mean_correct += correct / (i+1)
 

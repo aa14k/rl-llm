@@ -9,11 +9,12 @@ import torch
 import argparse
 from datasets import load_dataset, Dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import LoraConfig
 from trl import GRPOConfig, GRPOTrainer
 import numpy as np
 from accelerate import Accelerator
 from functools import partial
+from math_verify import parse, verify
+
 
 # ----------------------------------------------------------------------------
 # Argument Parser
@@ -39,7 +40,7 @@ def get_args():
     parser.add_argument("--gradient_accumulation_steps", type=int, default=4, help="Number of steps for gradient accumulation.")
     parser.add_argument("--warmup_ratio", type=float, default=0.1, help="Warmup ratio for the learning rate scheduler.")
     parser.add_argument("--lr_scheduler_type", type=str, default="constant_with_warmup", help="Learning rate scheduler type.")
-    parser.add_argument("--weight_decay", type=float, default=0.1, help="Weight decay for the optimizer.")
+    parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay for the optimizer.")
     parser.add_argument("--max_grad_norm", type=float, default=0.1, help="Maximum gradient norm for clipping.")
     parser.add_argument("--temperature", type=float, default=1.0, help="Generation temperature for sampling.")
 
@@ -51,8 +52,8 @@ def get_args():
 
 
     # Generation Lengths
-    parser.add_argument("--max_prompt_length", type=int, default=256, help="Maximum prompt length in tokens.")
-    parser.add_argument("--max_completion_length", type=int, default=786, help="Maximum completion length (max_new_tokens).")
+    parser.add_argument("--max_prompt_length", type=int, default=1024, help="Maximum prompt length in tokens.")
+    parser.add_argument("--max_completion_length", type=int, default=1024, help="Maximum completion length (max_new_tokens).")
 
     # Run Configuration
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
@@ -64,9 +65,7 @@ def get_args():
 
     # Logging and Saving
     parser.add_argument("--logging_steps", type=int, default=1, help="Log every N steps.")
-    parser.add_argument("--save_steps", type=int, default=1500, help="Save a checkpoint every N steps.")
-    parser.add_argument("use_vllm", action='store_true', help='Enable vllm during training')
-
+    parser.add_argument("--save_steps", type=int, default=400, help="Save a checkpoint every N steps.")
     return parser.parse_args()
 args = get_args()
 
@@ -94,17 +93,15 @@ XML_COT_FORMAT = """\
 </answer>
 """
 
-def extract_xml_answer(text: str) -> str:
-    answer = text.split("<answer>")[-1]
-    answer = answer.split("</answer>")[0]
-    return answer.strip()
-
 def extract_hash_answer(text: str) -> str | None:
     if "####" not in text:
         return None
     return text.split("####")[1].strip().replace(",", "").replace("$", "")
 
-# uncomment middle messages for 1-shot prompting
+def extract_xml_answer(text: str) -> str:
+    m = re.search(r"<answer>(.*?)</answer>", text, flags=re.DOTALL)
+    return m.group(1) if m else ""
+
 def get_gsm8k_questions(split = "train") -> Dataset:
     data = load_dataset('openai/gsm8k', 'main')[split] # type: ignore
     data = data.map(lambda x: { # type: ignore
@@ -118,6 +115,7 @@ def get_gsm8k_questions(split = "train") -> Dataset:
 
 dataset = get_gsm8k_questions()
 
+
 # Base Reward function (used by others)
 def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
     responses = [completion[0]['content'] for completion in completions]
@@ -125,13 +123,7 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
     extracted_responses = [extract_xml_answer(r) for r in responses]
     print('-'*20, f"Question:\n{q}", f"\nAnswer:\n{answer[0]}", f"\nResponse:\n{responses[0]}", f"\nExtracted:\n{extracted_responses[0]}")
     # Return a larger reward for correctness to make its signal stronger
-    return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
-
-# Other shaping rewards
-def int_reward_func(completions, **kwargs) -> list[float]:
-    responses = [completion[0]['content'] for completion in completions]
-    extracted_responses = [extract_xml_answer(r) for r in responses]
-    return [0.5 if r.isdigit() else 0.0 for r in extracted_responses]
+    return [2.0 if verify(parse(r),parse(a)) == True else 0.0 for r, a in zip(extracted_responses, answer)]
 
 def strict_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function that checks if the completion has a specific format."""
@@ -157,7 +149,7 @@ def xml_format_reward_func(completions, **kwargs) -> list[float]:
     pattern = r"<reasoning>.*?</reasoning>\s*<answer>.*?</answer>"
     responses = [completion[0]["content"] for completion in completions]
     matches = [re.search(pattern, r, flags=re.DOTALL) for r in responses]
-    return [0.5 if match else 0.0 for match in matches]
+    return [0.25 if match else 0.0 for match in matches]
 
 def count_xml(text) -> float:
     count = 0.0
@@ -180,25 +172,67 @@ def xmlcount_reward_func(completions, **kwargs) -> list[float]:
 
 # --- Define the necessary reward functions for discounting and evaluation ---
 
+# Remove entire <answer>...</answer> blocks (ignore their inner text)
+RE_ANSWER_BLOCK = re.compile(r"<answer>\s*.*?\s*</answer>", re.IGNORECASE | re.DOTALL)
+# Strip XML tags themselves (but keep their inner text if any remains)
+RE_XML_TAGS = re.compile(r"</?(?:reasoning|answer)\s*>", re.IGNORECASE)
+
+def discountable_text(content: str, ignore_newlines: bool = True) -> str:
+    """
+    Text to count for discounting:
+      - Drop <answer>...</answer> (and its contents).
+      - Remove <reasoning>/<answer> tags themselves.
+      - Optionally ignore newlines (default True).
+    Everything else remains and is counted.
+    """
+    # Normalize newlines first
+    text = content.replace("\r\n", "\n").replace("\r", "\n")
+
+    # 1) Remove the entire answer block(s)
+    text = RE_ANSWER_BLOCK.sub("", text)
+
+    # 2) Remove the tags themselves
+    text = RE_XML_TAGS.sub("", text)
+
+    # 3) Ignore newlines for discounting
+    if ignore_newlines:
+        # Replace runs of optional spaces + newline + optional spaces with a single space
+        text = re.sub(r"\s*\n\s*", " ", text)
+        # Clean up any excessive spacing at the ends
+        text = text.strip()
+
+    return text
+
 def discounted_correctness_reward(
     prompts, completions, answer, gamma: float, tokenizer, **kwargs
 ) -> list[float]:
-    """Internal function to calculate the fully discounted reward."""
+    """
+    Discount using tokens from everything outside <answer>...</answer>,
+    excluding the XML tags themselves and (by default) NEWLINES.
+    """
     base_rewards = correctness_reward_func(prompts, completions, answer, **kwargs)
-    discounted_rewards = []
+    out = []
+
     for i, completion in enumerate(completions):
-        base_reward = base_rewards[i]
-        if base_reward == 0.0:
-            discounted_rewards.append(0.0)
+        base = base_rewards[i]
+        if base == 0.0:
+            out.append(0.0)
             continue
-        completion_text = completion[0]['content']
-        num_tokens = len(tokenizer.encode(completion_text))
-        if num_tokens > 0:
-            discounted_reward = base_reward * (gamma ** (num_tokens - 1))
-        else:
-            discounted_reward = 0.0
-        discounted_rewards.append(discounted_reward)
-    return discounted_rewards
+
+        completion_text = completion[0]["content"]
+
+        # Get only the discountable text per your rules
+        countable = discountable_text(completion_text, ignore_newlines=True)
+
+        # Tokenize and compute discount
+        n_tokens = len(tokenizer.encode(countable))
+
+        # If nothing to count (e.g., model only returned a clean <answer> block),
+        # don't penalize formatting: exponent 0 -> gamma**0 == 1
+        k = max(n_tokens, 1)
+        out.append(base * (gamma ** (k - 1)))
+
+    return out
 
 
 
@@ -314,7 +348,8 @@ trainer = GRPOTrainer(
         xmlcount_reward_func,
         soft_format_reward_func,
         strict_format_reward_func,
-        int_reward_func,
+        xml_format_reward_func,
+        
 
         # --- Correctness Rewards (The Additive Trick) ---
         # The trainer sums all rewards. We provide two functions that, when added,
@@ -336,23 +371,14 @@ trainer = GRPOTrainer(
     train_dataset=dataset,
 )
 
-# print(trainer.generation_config)  
-# print("→ max_new_tokens:", trainer.generation_config.max_new_tokens)
-# print("→ temperature:   ", trainer.generation_config.temperature)
-# print("→ top_p:         ", trainer.generation_config.top_p)
-# print("→ gamma:         ", GAMMA)
-# print("→ ref_sync:      ", args.sync_ref_model)
-# print("→ disable_dropout:      ", args.disable_dropout)
-# print("→ warmup_ratio:        ", args.warmup_ratio)
 
-try:
-    trainer.train()
-finally:
-    trainer.save_model(output_dir + "/final")  
 
+trainer.train()
 
 # trainer.accelerator.wait_for_everyone()
 # if trainer.accelerator.is_main_process:
 #     trainer.save_model(output_dir + "/final")   # or your path
 #     tokenizer.save_pretrained(output_dir + "/final")
 # trainer.accelerator.wait_for_everyone()
+
+

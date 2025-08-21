@@ -41,17 +41,11 @@ Respond in the following format:
 </answer>
 """
 
-def extract_inter_answer(text: str) -> int:
-    numbers = re.findall(r'\d+', text)
-    if numbers:
-        return int(numbers[0])
-    return 0
+
 
 def extract_xml_answer(text: str) -> str:
-    answer = text.split("<answer>")[-1]
-    answer = answer.split("</answer>")[0]
-    #print(answer)
-    return answer.strip()
+    m = re.search(r"<answer>(.*?)</answer>", text, flags=re.DOTALL)
+    return m.group(1) if m else ""
 
 def extract_hash_answer(text: str) -> str | None:
     if "####" not in text:
@@ -123,9 +117,9 @@ for run in tqdm(range(runs)):
     correct = 0
     for i, output in enumerate(outputs):
         generated_text = output.outputs[0].text
-        answer = extract_xml_answer(generated_text)
-        gold = eval_data[i]["other_answer"]
-        if answer == gold:
+        answer = parse(extract_xml_answer(generated_text))
+        gold = parse(eval_data[i]["other_answer"])
+        if verify(gold,answer):
             correct += 1
     mean_correct += correct / (i+1)
 

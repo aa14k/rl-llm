@@ -4,61 +4,71 @@ mkdir -p eval_results
 export CUDA_DEVICE_ORDER=PCI_BUS_ID  # stable GPU indexing
 
 # ---------- capacityblock2 ----------
-path='/home/ubuntu/alex/verifiers/outputs/'
-date='8-13-'
+path='/home/ubuntu/alex/s3_outputs/'
+date='8-21-'
 run=''
-name='Qwen2.5-7B-Instruct-gsm8k-gamma0.9999999-seed42-capacityblock4'
+name='run2'
 
-CUDA_VISIBLE_DEVICES=0 python eval.py \
-  --model_name "${path}${name}/checkpoint-935" \
-  --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-  > "eval_results/${date}${name}${run}.txt" &
+CUDA_VISIBLE_DEVICES=0 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-300" \
+  --runs 10 --max_model_len 3072 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-1.txt" &
 
-name='Qwen2.5-7B-Instruct-gsm8k-gamma0.9999999-seed43-capacityblock4'
-CUDA_VISIBLE_DEVICES=1 python eval.py \
-  --model_name "${path}${name}/checkpoint-935" \
-  --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-  > "eval_results/${date}${name}${run}.txt" &
+#name='Qwen2.5-7B-Instruct-math-gamma0.99999975-seed42-300rew-3gen-capacityblock4-10'
 
-name='Qwen2.5-7B-Instruct-gsm8k-gamma0.99999975-seed42-capacityblock4'
-CUDA_VISIBLE_DEVICES=2 python eval.py \
-  --model_name "${path}${name}/checkpoint-935" \
-  --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-  > "eval_results/${date}${name}${run}.txt" &
+CUDA_VISIBLE_DEVICES=1 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-600" \
+  --runs 10 --max_model_len 3072 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-2.txt" &
 
-name='Qwen2.5-7B-Instruct-gsm8k-gamma1.0-seed42-capacityblock4'
-CUDA_VISIBLE_DEVICES=3 python eval.py \
-  --model_name "${path}${name}/checkpoint-935" \
-  --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-  > "eval_results/${date}${name}${run}.txt" &
+# #name='Qwen2.5-7B-Instruct-math-gamma0.99999975-seed42-300rew-3gen-capacityblock4-10'
+CUDA_VISIBLE_DEVICES=2 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-900" \
+  --runs 10 --max_model_len 3072 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-3.txt" &
 
-name='Qwen2.5-7B-Instruct-gsm8k-gamma1.0-seed43-3gen-capacityblock4'
-CUDA_VISIBLE_DEVICES=4 python eval.py \
-  --model_name "${path}${name}/checkpoint-935" \
-  --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-  > "eval_results/${date}${name}${run}.txt" &
+# #name='Qwen2.5-7B-Instruct-math-gamma0.99999975-seed42-300rew-3gen-capacityblock4-10'
+
+CUDA_VISIBLE_DEVICES=3 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-1200" \
+  --runs 10 --max_model_len 3072 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-4.txt" &
 
 
-# name='Qwen2.5-0.5B-Instruct-gsm8k-gamma0.99999999-seed41-3gen-beta0.001-16steps-1epoch-193'
-# CUDA_VISIBLE_DEVICES=5 python eval.py \
-#   --model_name "${path}${name}/checkpoint-935" \
-#   --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-#   > "eval_results/${date}${name}${run}.txt" &
+# #name='Qwen2.5-7B-Instruct-math-gamma0.99999975-seed42-300rew-3gen-capacityblock4-10'
 
-# name='Qwen2.5-0.5B-Instruct-gsm8k-gamma0.99999995-seed42-1epoch-182'
-# CUDA_VISIBLE_DEVICES=6 python eval.py \
-#   --model_name "${path}${name}/checkpoint-935" \
-#   --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-#   > "eval_results/${date}${name}${run}.txt" &
+CUDA_VISIBLE_DEVICES=4 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-1500" \
+  --runs 10 --max_model_len 3072 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-5.txt" &
 
-# name='Qwen2.5-0.5B-Instruct-gsm8k-gamma0.999999995-seed42-1epoch-193'
-# CUDA_VISIBLE_DEVICES=7 python eval.py \
-#   --model_name "${path}${name}/checkpoint-935" \
-#   --runs 30 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --top_k 0 --max_tokens 786 \
-#   > "eval_results/${date}${name}${run}-1.txt" &
+# #name='Qwen2.5-7B-Instruct-math-gamma0.99999975-seed42-300rew-3gen-capacityblock4-10'
 
-# GPU 7 is free; use it if you add another run:
-# CUDA_VISIBLE_DEVICES=7 python eval.py ...
+CUDA_VISIBLE_DEVICES=5 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-1714" \
+  --runs 10 --max_model_len 1024 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-6.txt" &
+
+# #name='Qwen2.5-7B-Instruct-math-gamma0.99999975-seed42-300rew-3gen-capacityblock4-10'
+
+
+CUDA_VISIBLE_DEVICES=6 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-1714" \
+  --runs 10 --max_model_len 3072 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-7.txt" &
+
+# #name='Qwen2.5-7B-Instruct-math-gamma0.99999975-seed42-300rew-3gen-capacityblock4-10'
+
+CUDA_VISIBLE_DEVICES=7 python huggingface_eval_math.py \
+  --model_name "${path}${name}/checkpoint-1200" \
+  --runs 10 --max_model_len 3072 --temperature 0.0 --top_p 1.0 --max_tokens 2048 --seed 42 \
+  > "eval_results/${date}${name}${run}-42-8.txt" &
+
+
 
 wait
 echo "All evals finished."
+
+
+
+

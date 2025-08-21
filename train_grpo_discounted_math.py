@@ -130,6 +130,11 @@ def strict_format_reward_func(completions, **kwargs) -> list[float]:
     matches = [re.match(pattern, r, flags=re.DOTALL) for r in responses]
     return [0.5 if match else 0.0 for match in matches]
 
+def answer_length_reward(prompts, completions, answer, **kwargs) -> list[float]:
+    responses = [completion[0]['content'] for completion in completions]
+    extracted_responses = [extract_xml_answer(r) for r in responses]
+    return [0.5 if len(r) < 50 and len(r) > 0 else 0.0 for r in extracted_responses]
+
 def soft_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function that checks if the completion has a specific format."""
     pattern = r"<reasoning>.*?</reasoning>\s*<answer>.*?</answer>"
@@ -170,25 +175,97 @@ def xmlcount_reward_func(completions, **kwargs) -> list[float]:
 
 # --- Define the necessary reward functions for discounting and evaluation ---
 
+# --- Define the necessary reward functions for discounting and evaluation ---
+
+# Captures ONLY the text inside <reasoning>...</reasoning> and excludes the
+# required leading/trailing newlines mandated by strict_format_reward_func.
+RE_REASONING_CONTENT = re.compile(
+    r"<reasoning>[^\S\n]*\n(.*?)\n[^\S\n]*</reasoning>",
+    re.DOTALL,
+)
+
+def discountable_text(content: str, ignore_newlines: bool = True) -> str:
+    """
+    Only returns text inside <reasoning>...</reasoning>.
+    With ignore_newlines=False, every internal newline is preserved and counted
+    (except the single required newline after <reasoning> and before </reasoning>).
+    """
+    text = content.replace("\r\n", "\n").replace("\r", "\n")
+    parts = RE_REASONING_CONTENT.findall(text)
+    if not parts:
+        return ""
+    reasoning_text = "\n\n".join(parts)
+    if ignore_newlines:
+        # Collapse all whitespace to single spaces for length-based discounting
+        return re.sub(r"\s+", " ", reasoning_text).strip()
+    else:
+        # Preserve internal whitespace exactly
+        return reasoning_text
+
+
+
+# # Remove entire <answer>...</answer> blocks (ignore their inner text)
+# RE_ANSWER_BLOCK = re.compile(r"<answer>\s*.*?\s*</answer>", re.IGNORECASE | re.DOTALL)
+# # Strip XML tags themselves (but keep their inner text if any remains)
+# RE_XML_TAGS = re.compile(r"</?(?:reasoning|answer)\s*>", re.IGNORECASE)
+
+# def discountable_text(content: str, ignore_newlines: bool = True) -> str:
+#     """
+#     Text to count for discounting:
+#       - Drop <answer>...</answer> (and its contents).
+#       - Remove <reasoning>/<answer> tags themselves.
+#       - Optionally ignore newlines (default True).
+#     Everything else remains and is counted.
+#     """
+#     # Normalize newlines first
+#     text = content.replace("\r\n", "\n").replace("\r", "\n")
+
+#     # 1) Remove the entire answer block(s)
+#     text = RE_ANSWER_BLOCK.sub("", text)
+
+#     # 2) Remove the tags themselves
+#     text = RE_XML_TAGS.sub("", text)
+
+#     # 3) Ignore newlines for discounting
+#     if ignore_newlines:
+#         # Replace runs of optional spaces + newline + optional spaces with a single space
+#         text = re.sub(r"\s*\n\s*", " ", text)
+#         # Clean up any excessive spacing at the ends
+#         text = text.strip()
+
+#     return text
+
 def discounted_correctness_reward(
     prompts, completions, answer, gamma: float, tokenizer, **kwargs
 ) -> list[float]:
-    """Internal function to calculate the fully discounted reward."""
+    """
+    Discount using tokens from everything outside <answer>...</answer>,
+    excluding the XML tags themselves and (by default) NEWLINES.
+    """
     base_rewards = correctness_reward_func(prompts, completions, answer, **kwargs)
-    discounted_rewards = []
+    out = []
+
     for i, completion in enumerate(completions):
-        base_reward = base_rewards[i]
-        if base_reward == 0.0:
-            discounted_rewards.append(0.0)
+        base = base_rewards[i]
+        if base == 0.0:
+            out.append(0.0)
             continue
-        completion_text = completion[0]['content']
-        num_tokens = len(tokenizer.encode(completion_text))
-        if num_tokens > 0:
-            discounted_reward = base_reward * (gamma ** (num_tokens - 1))
-        else:
-            discounted_reward = 0.0
-        discounted_rewards.append(discounted_reward)
-    return discounted_rewards
+
+        completion_text = completion[0]["content"]
+
+        # Get only the discountable text per your rules
+        countable = discountable_text(completion_text, ignore_newlines=False)
+
+        # Tokenize and compute discount
+        n_tokens = len(tokenizer.encode(countable))
+
+        # If nothing to count (e.g., model only returned a clean <answer> block),
+        # don't penalize formatting: exponent 0 -> gamma**0 == 1
+        k = max(n_tokens, 1)
+        out.append(base * (gamma ** (k - 1)))
+
+    return out
+
 
 
 
