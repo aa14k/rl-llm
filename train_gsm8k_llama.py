@@ -1,9 +1,3 @@
-# train_grpo.py
-#
-# See https://github.com/willccbb/verifiers for ongoing developments
-#
-
-
 import re
 import torch
 import argparse
@@ -30,6 +24,7 @@ def get_args():
     # Dataset
     parser.add_argument("--dataset_name", type=str, default="openai/gsm8k", help="The name of the dataset to use.")
     parser.add_argument("--dataset_subset", type=str, default="main", help="The subset of the dataset to use.")
+    parser.add_argument("--shuffle_dataset", action='store_true', help="Shuffle the dataset")
 
     # Training Hyperparameters
     parser.add_argument("--learning_rate", type=float, default=5e-6, help="The learning rate for the AdamW optimizer.")
@@ -113,9 +108,11 @@ def get_gsm8k_questions(split = "train") -> Dataset:
         ],
         'answer': extract_hash_answer(x['answer'])
     }) # type: ignore
+    data = data.shuffle(seed=args.seed)
     return data # type: ignore
 
 dataset = get_gsm8k_questions()
+if args.shuffle_dataset: dataset = dataset.shuffle(seed=args.seed)
 
 
 # Base Reward function (used by others)
