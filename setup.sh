@@ -44,6 +44,9 @@ uv pip uninstall vllm
 
 uv pip install vllm --no-build-isolation
 
+uv pip install kernels
+uv pip install openai-harmony
+
 cd ..
 rm -rf verifiers/
 
