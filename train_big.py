@@ -32,7 +32,7 @@ def get_args():
     parser.add_argument("--dataset_subset", type=str, default="main", help="The subset of the dataset to use.")
     parser.add_argument("--shuffle_dataset", action='store_true', help="Shuffle the dataset")
     # Training Hyperparameters
-    parser.add_argument("--learning_rate", type=float, default=5e-6, help="The learning rate for the AdamW optimizer.")
+    parser.add_argument("--learning_rate", type=float, default=1e-6, help="The learning rate for the AdamW optimizer.")
     parser.add_argument("--gamma", type=float, default=1-1e-7, help="The discount factor for controlling lengths of completions in the GRPO loss.")
     parser.add_argument("--beta", type=float, default=0.4, help="The beta parameter for the GRPO loss.")
     parser.add_argument("--num_train_epochs", type=int, default=1, help="Total number of training epochs.")
@@ -53,7 +53,7 @@ def get_args():
 
     # Generation Lengths
     parser.add_argument("--max_prompt_length", type=int, default=1536, help="Maximum prompt length in tokens.")
-    parser.add_argument("--max_completion_length", type=int, default=3072, help="Maximum completion length (max_new_tokens).")
+    parser.add_argument("--max_completion_length", type=int, default=4096, help="Maximum completion length (max_new_tokens).")
     parser.add_argument("--max_answer_length", type=int, default=500, help="Maximum answer length for discounted model.")
     parser.add_argument("--answer_reward_scale", type=float, default=1.0, help="Maximum answer length for discounted model.")
 
@@ -67,7 +67,7 @@ def get_args():
 
     # Logging and Saving
     parser.add_argument("--logging_steps", type=int, default=1, help="Log every N steps.")
-    parser.add_argument("--save_steps", type=int, default=6000, help="Save a checkpoint every N steps.")
+    parser.add_argument("--save_steps", type=int, default=10000, help="Save a checkpoint every N steps.")
     return parser.parse_args()
 args = get_args()
 
