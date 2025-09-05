@@ -31,20 +31,27 @@ def get_args():
 args = get_args()
 
 
-SYSTEM_PROMPT = """
-Respond in the following format:
+SYSTEM_PROMPT = """You must reply in EXACTLY this XML:
+
 <reasoning>
 ...
 </reasoning>
 <answer>
 ...
 </answer>
+
+Rules:
+- All text must be wrapped inside a <reasoning> </reasoning> or <answer> </answer> tag. 
 """
 
 
 
 def extract_xml_answer(text: str) -> str:
-    m = re.search(r"<answer>(.*?)</answer>", text, flags=re.DOTALL)
+    m = re.search(r"<answer>\s*(.*?)\s*</answer>", text, flags=re.DOTALL)
+    if m:
+        return m.group(1).strip()
+    # Fallback: if stop stripped the closing tag, take until EOS
+    m = re.search(r"<answer>\s*(.*)$", text, flags=re.DOTALL)
     return m.group(1).strip() if m else ""
 
 def extract_hash_answer(text: str) -> str | None:
@@ -63,9 +70,11 @@ def extract_numerical_answer(answer_text):
 
 #model_name = 'data2/alex/verifiers/outputs/Qwen2.5-0.5B-Instruct-gsm8k-gamma1.0-seed42-beta0.1-8steps-1epoch-193/checkpoint-935'  # Example model name, replace with your actual model path
 model_name = args.model_name
+BASE_TOKENIZER_ID = "microsoft/phi-4"
 
 llm = LLM(
     model=model_name,
+    tokenizer=BASE_TOKENIZER_ID,
     tensor_parallel_size=1,
     dtype="auto",
     trust_remote_code=True,
@@ -74,8 +83,8 @@ llm = LLM(
     enforce_eager=False,  # Use Flash Attention 2
 )
 
-data = load_dataset("math-ai/minervamath")['test']
-tokenizer = AutoTokenizer.from_pretrained(model_name)
+data = load_dataset("math-ai/amc23")['test']
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 eval_data = []
 for i, item in enumerate(data):
     # Create the chat structure, same as in training
@@ -105,7 +114,7 @@ prompts = [item["prompt"] for item in eval_data]
 
 
 
-sampling_params = SamplingParams(temperature=args.temperature, top_p = args.top_p, top_k = args.top_k, max_tokens=args.max_tokens, seed = args.seed)
+sampling_params = SamplingParams(temperature=args.temperature, top_p = args.top_p, top_k=args.top_k, max_tokens=args.max_tokens, seed = args.seed,stop=["</answer>"])
 runs = args.runs
 mean_correct = 0
 mean_length = 0
