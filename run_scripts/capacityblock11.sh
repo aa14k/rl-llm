@@ -1,8 +1,41 @@
 
-CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 accelerate launch train_big.py \
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 accelerate launch --num_processes 6 train_gpt.py \
     --seed 42 \
-    --machine_name "big-capacityblock11" \
+    --machine_name "beta0.01-big-capacityblock11" \
     --sync_ref_model \
     --disable_dropout \
     --shuffle_dataset \
-    --gamma 0.999
+    --gamma 0.9999 \
+    --use_vllm \
+    --attn_implementation flash_attention_2 \
+    --beta 0.01 \
+    --num_generations 5 \
+    --gradient_accumulation_steps 5
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 accelerate launch --num_processes 6 train_gpt.py \
+    --seed 42 \
+    --machine_name "beta0.01-big-capacityblock11" \
+    --sync_ref_model \
+    --disable_dropout \
+    --shuffle_dataset \
+    --gamma 0.999 \
+    --use_vllm \
+    --attn_implementation flash_attention_2 \
+    --beta 0.01 \
+    --num_generations 5 \
+    --gradient_accumulation_steps 5
+
+
+CUDA_VISIBLE_DEVICES=2,3,4,5,6,7 accelerate launch --num_processes 6 train_gpt.py \
+    --seed 42 \
+    --machine_name "beta0.01-big-capacityblock11" \
+    --sync_ref_model \
+    --disable_dropout \
+    --shuffle_dataset \
+    --gamma 0.99995 \
+    --use_vllm \
+    --attn_implementation flash_attention_2 \
+    --beta 0.01 \
+    --num_generations 5 \
+    --gradient_accumulation_steps 5
+

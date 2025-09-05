@@ -257,7 +257,7 @@ def discounted_correctness_reward(
         completion_text = completion[0]["content"]
 
         # Get only the discountable text per your rules
-        countable = discountable_text(completion_text, ignore_newlines=False)
+        countable = discountable_text(completion_text, ignore_newlines=True)
 
         # Tokenize and compute discount
         n_tokens = len(tokenizer.encode(countable))
