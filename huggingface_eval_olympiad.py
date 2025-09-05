@@ -31,14 +31,17 @@ def get_args():
 args = get_args()
 
 
-SYSTEM_PROMPT = """
-Respond in the following format:
+SYSTEM_PROMPT = """You must reply in EXACTLY this XML:
+
 <reasoning>
 ...
 </reasoning>
 <answer>
 ...
 </answer>
+
+Rules:
+- All text must be wrapped inside a <reasoning> </reasoning> or <answer> </answer> tag. 
 """
 
 
@@ -80,42 +83,51 @@ llm = LLM(
     enforce_eager=False,  # Use Flash Attention 2
 )
 
-data = load_dataset("nlile/hendrycks-MATH-benchmark")['test']
-tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-eval_data = []
-for i, item in enumerate(data):
-    # Create the chat structure, same as in training
-    chat = [
-        {'role': 'system', 'content': SYSTEM_PROMPT},
-        {'role': 'user', 'content': item["problem"]},
-    ]
-    
-    # Apply the template to get the correctly formatted prompt string
-    formatted_prompt = tokenizer.apply_chat_template(
-        chat,
-        tokenize=False,
-        add_generation_prompt=True # Adds the prompt for the assistant's turn
-    )
-    
-    proccessed = {
-        "question": item["problem"],
-        "prompt": formatted_prompt, # Use the correctly formatted prompt
-        "answer": item["answer"],
-        "numerical_answer": item["answer"],
-        "other_answer": item["answer"],
-    }
-    eval_data.append(proccessed)
+def get_dataset(run):
+    data = load_dataset("math-ai/olympiadbench")['test']
+    data = data.shuffle(seed = args.seed + run)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    eval_data = []
+    for i, item in enumerate(data):
+        # Create the chat structure, same as in training
+        chat = [
+            {'role': 'system', 'content': SYSTEM_PROMPT},
+            {'role': 'user', 'content': item["question"]},
+        ]
+        
+        # Apply the template to get the correctly formatted prompt string
+        formatted_prompt = tokenizer.apply_chat_template(
+            chat,
+            tokenize=False,
+            add_generation_prompt=True # Adds the prompt for the assistant's turn
+        )
+        
+        proccessed = {
+            "question": item["question"],
+            "prompt": formatted_prompt, # Use the correctly formatted prompt
+            "answer": item["final_answer"],
+            "numerical_answer": item["final_answer"][0],
+            "other_answer": item["final_answer"][0],
+        }
+        eval_data.append(proccessed)
 
-prompts = [item["prompt"] for item in eval_data]
+    prompts = [item["prompt"] for item in eval_data]
+    return prompts, eval_data
 
 
 
 
-sampling_params = SamplingParams(temperature=args.temperature, top_p = args.top_p, top_k=args.top_k, max_tokens=args.max_tokens, seed = args.seed,stop=["</answer>"])
+sampling_params = SamplingParams(temperature=args.temperature, 
+                                 top_p = args.top_p, 
+                                 top_k=args.top_k, 
+                                 max_tokens=args.max_tokens, 
+                                 seed = args.seed,stop=["</answer>"]
+                                )
 runs = args.runs
 mean_correct = 0
 mean_length = 0
 for run in tqdm(range(runs)):
+    prompts, eval_data = get_dataset(run)
 
     outputs = llm.generate(prompts, sampling_params)
 

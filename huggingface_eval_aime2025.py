@@ -31,14 +31,17 @@ def get_args():
 args = get_args()
 
 
-SYSTEM_PROMPT = """
-Respond in the following format:
+SYSTEM_PROMPT = """You must reply in EXACTLY this XML:
+
 <reasoning>
 ...
 </reasoning>
 <answer>
 ...
 </answer>
+
+Rules:
+- All text must be wrapped inside a <reasoning> </reasoning> or <answer> </answer> tag. 
 """
 
 
@@ -80,7 +83,7 @@ llm = LLM(
     enforce_eager=False,  # Use Flash Attention 2
 )
 
-data = load_dataset("nlile/hendrycks-MATH-benchmark")['test']
+data = load_dataset("math-ai/aime25")['test']
 tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 eval_data = []
 for i, item in enumerate(data):

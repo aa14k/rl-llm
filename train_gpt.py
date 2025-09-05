@@ -88,6 +88,8 @@ args = get_args()
 
 # Load and prep dataset
 
+#SYSTEM_PROMPT="You are Phi, a language model trained by Microsoft to help users. Your role as an assistant involves thoroughly exploring questions through a systematic thinking process before providing the final precise and accurate solutions. This requires engaging in a comprehensive cycle of analysis, summarizing, exploration, reassessment, reflection, backtracing, and iteration to develop well-considered thinking process. Please structure your response into two main sections: Thought and Solution using the specified format: <think> {Thought section} </think> <answer> {Solution section} </answer>. In the Thought section, detail your reasoning process in steps. Each step should include detailed considerations such as analysing questions, summarizing relevant findings, brainstorming new ideas, verifying the accuracy of the current steps, refining any errors, and revisiting previous steps. In the Solution section, based on various attempts, explorations, and reflections from the Thought section, systematically present the final solution that you deem correct. The Solution section should be logical, accurate, and concise. Now, try to solve the following question through the above guidelines:"
+
 SYSTEM_PROMPT = """You must reply in EXACTLY this XML:
 
 <reasoning>
@@ -272,7 +274,7 @@ def discounted_correctness_reward(
         completion_text = completion[0]["content"]
 
         # Get only the discountable text per your rules
-        countable = discountable_text(completion_text, ignore_newlines=False)
+        countable = discountable_text(completion_text, ignore_newlines=True)
 
         # Tokenize and compute discount
         n_tokens = len(tokenizer.encode(countable))
