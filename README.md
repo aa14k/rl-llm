@@ -49,17 +49,16 @@ CUDA_VISIBLE_DEVICES=0 trl vllm-serve --model Qwen/Qwen2.5-7B-Instruct --tensor-
 
 ### 2. Run the Training Script
 
-In a separate terminal (with the `grpo_env` still active), run the training script. This example uses `train_gsm8k.py` and assigns the training process to **GPU 1**.
+In a separate terminal (with the `grpo_env` still active), run the training script. This example uses `train_gsm8k.py` and assigns the training process to the remaining GPUS.
 
 ```bash
-CUDA_VISIBLE_DEVICES=1 python train_gsm8k.py
+CUDA_VISIBLE_DEVICES=1,2,... python train_gsm8k.py
 ```
 
-You can replace `train_gsm8k.py` with `train_math.py` to run the other training script.
+You can replace `train_gsm8k.py` with `train_XXX.py` to run the other training script (different dataset/models).
 
 ---
 
-## 🔧 Configuration & Advanced Usage
 
 ### Single GPU Usage
 
@@ -69,7 +68,3 @@ If you have only **one GPU**, you cannot run the vLLM server and the training sc
 2.  Locate the `GRPOConfig` arguments.
 3.  Set `use_vllm = False`.
 4.  Comment out the `generation_kwargs` line directly below it.
-
-### Multi-GPU Training (>2 GPUs)
-
-If you have more than two GPUs, you can distribute the training process using Hugging Face Accelerate for improved performance. For detailed instructions on how to configure this, please refer to the official [**Hugging Face Accelerate documentation**](https://huggingface.co/docs/accelerate).
