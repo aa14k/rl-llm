@@ -1,21 +1,75 @@
-# Setup
+# GRPO Training Scripts
 
-To get everything setup, simply run the commands inside 
+This repository contains scripts for training language models on mathematical reasoning tasks like GSM8K and MATH, using Generative Rejection-based Policy Optimization (GRPO).
 
-setup.sh
+---
 
-This should install a conda environment and download the necessary dependencies. 
+## ⚙️ Prerequisites
 
-Note the scripts are meant to work with vLLM (which assumes you have at least 2 gpus). If this is not the case, please go into either train_gsm8k.py or train_math.py and set use_vllm = False in the GRPOConfig arguments. Also comment out the generation_kwargs beneath it. 
+* **Conda:** You must have Anaconda or Miniconda installed.
+* **NVIDIA GPUs:** The scripts are configured by default for a machine with at least **two** NVIDIA GPUs (one for the vLLM server, one for training). Instructions for single-GPU usage are provided below.
+* **Python:** The environment will be set up with Python 3.11.
 
-start vllm by running the following command
+---
 
+## 🚀 Getting Started
+
+Follow these steps to set up your environment and run the training scripts.
+
+### 1. Create and Activate Conda Environment
+
+First, you need to create a new conda environment with Python 3.11 and activate it.
+
+```bash
+conda create -n grpo_env python=3.11
+conda activate grpo_env
+```
+
+### 2. Run the Setup Script
+
+Once the environment is active, run the provided setup script to install all the necessary dependencies.
+
+```bash
+bash setup.sh
+```
+
+---
+
+## ▶️ How to Run
+
+Running the training process involves two main steps: starting the vLLM inference server and then launching the training script.
+
+### 1. Start the vLLM Server
+
+In a new terminal, run the following command to start the vLLM server. This will host the `Qwen/Qwen2.5-7B-Instruct` model on **GPU 0**.
+
+```bash
 CUDA_VISIBLE_DEVICES=0 trl vllm-serve --model Qwen/Qwen2.5-7B-Instruct --tensor-parallel-size 1 --data-parallel-size 1
+```
 
-then you can run the script by running
+### 2. Run the Training Script
 
+In a separate terminal (with the `grpo_env` still active), run the training script. This example uses `train_gsm8k.py` and assigns the training process to **GPU 1**.
+
+```bash
 CUDA_VISIBLE_DEVICES=1 python train_gsm8k.py
+```
 
-Note that if you have more than 2 gpus, you can use accelerate to distribute training. Check out the docs for accelerate on huggingface or message Alex for more details. 
+You can replace `train_gsm8k.py` with `train_math.py` to run the other training script.
 
+---
 
+## 🔧 Configuration & Advanced Usage
+
+### Single GPU Usage
+
+If you have only **one GPU**, you cannot run the vLLM server and the training script simultaneously. You must disable the vLLM-based generation in the script.
+
+1.  Open either `train_gsm8k.py` or `train_math.py`.
+2.  Locate the `GRPOConfig` arguments.
+3.  Set `use_vllm = False`.
+4.  Comment out the `generation_kwargs` line directly below it.
+
+### Multi-GPU Training (>2 GPUs)
+
+If you have more than two GPUs, you can distribute the training process using Hugging Face Accelerate for improved performance. For detailed instructions on how to configure this, please refer to the official [**Hugging Face Accelerate documentation**](https://huggingface.co/docs/accelerate).
