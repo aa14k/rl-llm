@@ -1,4 +1,4 @@
-# ReadME
+# Readme
 
 This repository contains scripts for training language models on mathematical reasoning tasks like GSM8K and MATH, using Generative Rejection-based Policy Optimization (GRPO).
 
