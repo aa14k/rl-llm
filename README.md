@@ -14,6 +14,8 @@ This repository contains scripts for training language models on mathematical re
 
 ## 🚀 Getting Started
 
+WARNING: THE SETUP MAY NOT WORK AS VERSION GET UPDATED (AND CUDA CHANGES). CONSULT YOUR LLM IF THERE ARE ISSUES. 
+
 Follow these steps to set up your environment and run the training scripts.
 
 ### 1. Create and Activate Conda Environment
